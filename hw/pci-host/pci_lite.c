@@ -219,7 +219,8 @@ PCIBus *pci_lite_init(MemoryRegion *address_space_mem,
                                 pci_swizzle_map_irq_fn, pci, pci_address_space,
                                 address_space_io, 0, 4, TYPE_PCIE_BUS);
 
-    object_property_add_child(qdev_get_machine(), "pcilite", OBJECT(dev), NULL);
+    //Don't need this
+    //object_property_add_child(qdev_get_machine(), "pcilite", OBJECT(dev), NULL);
     qdev_init_nofail(dev);
 
     pci_lite = PCI_LITE_HOST(dev);
