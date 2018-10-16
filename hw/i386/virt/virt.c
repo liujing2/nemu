@@ -258,6 +258,38 @@ static void virt_machine_set_nvdimm(Object *obj, bool value, Error **errp)
     vms->acpi_conf.acpi_nvdimm_state.is_enabled = value;
 }
 
+static void virt_machine_get_segment_nr(Object *obj, Visitor *v,
+                                        const char *name, void *opaque,
+                                        Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+    uint16_t value = vms->acpi_conf.segment_nr;
+
+    visit_type_uint16(v, name, &value, errp);
+}
+
+static void virt_machine_set_segment_nr(Object *obj, Visitor *v,
+                                        const char *name, void *opaque,
+                                        Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+    Error *local_err = NULL;
+    uint16_t value;
+
+    visit_type_uint16(v, name, &value, &local_err);
+    if (local_err) {
+        goto out;
+    }
+    if (value < 1){
+        error_setg(&local_err, "Property '%s' should be greater than 1",
+                   object_get_typename(obj));
+        goto out;
+    }
+
+    vms->acpi_conf.segment_nr = value;
+out:
+    error_propagate(errp, local_err);
+}
 static void
 virt_machine_get_device_memory_region_size(Object *obj, Visitor *v,
                                            const char *name, void *opaque,
@@ -275,6 +307,8 @@ static void virt_machine_instance_init(Object *obj)
 
     /* Disable NVDIMM by default */
     vms->acpi_conf.acpi_nvdimm_state.is_enabled = false;
+    /* Only one PCI segment by default */
+    vms->acpi_conf.segment_nr = 1;
 }
 
 static void virt_machine_reset(void)
@@ -323,6 +357,11 @@ static void virt_class_init(ObjectClass *oc, void *data)
                                    virt_machine_get_nvdimm,
                                    virt_machine_set_nvdimm,
                                    &error_abort);
+    /* Multi-segment property */
+    object_class_property_add(oc, "segment-nr", "uint16",
+                                   virt_machine_get_segment_nr,
+                                   virt_machine_set_segment_nr,
+                                   NULL, NULL, NULL);
     /* MEMHP setting */
     object_class_property_add(oc, MEMORY_DEVICE_REGION_SIZE, "int",
                               virt_machine_get_device_memory_region_size, NULL,
