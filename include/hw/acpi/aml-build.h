@@ -5,6 +5,7 @@
 #include "hw/acpi/acpi-defs.h"
 #include "hw/acpi/bios-linker-loader.h"
 #include "hw/pci/pcie_host.h"
+#include "qemu/range.h"
 
 /* Reserve RAM space for tables: add another order of magnitude. */
 #define ACPI_BUILD_TABLE_MAX_SIZE         0x200000
@@ -234,8 +235,8 @@ typedef struct AcpiMcfgInfo {
 
 typedef struct AcpiPciBus {
     PCIBus *pci_bus;
-    Range *pci_hole;
-    Range *pci_hole64;
+    Range pci_hole;
+    Range pci_hole64;
     uint16_t pci_segment; /* PCI Segment Group number */
     uint16_t acpi_iobase_addr;
 }AcpiPciBus;

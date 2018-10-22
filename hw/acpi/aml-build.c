@@ -2214,8 +2214,8 @@ Aml *build_pci_host_bridge(Aml *table, AcpiPciBus *pci_host)
 
     bus = pci_host->pci_bus;
     assert(bus);
-    pci_hole = pci_host->pci_hole;
-    pci_hole64 = pci_host->pci_hole64;
+    pci_hole = &pci_host->pci_hole;
+    pci_hole64 = &pci_host->pci_hole64;
     pci_segment = pci_host->pci_segment;
 
     crs_range_set_init(&crs_range_set);
