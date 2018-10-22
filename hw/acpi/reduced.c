@@ -93,13 +93,16 @@ static void acpi_dsdt_add_sleep_state(Aml *scope)
 static void build_dsdt(MachineState *ms, GArray *table_data, BIOSLinker *linker, AcpiPciBus *pci_host, AcpiConfiguration *conf)
 {
     Aml *scope, *dsdt;
+    uint16_t i;
 
     dsdt = init_aml_allocator();
     /* Reserve space for header */
     acpi_data_push(dsdt->buf, sizeof(AcpiTableHeader));
 
     scope = aml_scope("\\_SB");
-    acpi_dsdt_add_pci_bus(dsdt, pci_host);
+    for (i = 0; i < conf->segment_nr; i++) {
+        acpi_dsdt_add_pci_bus(dsdt, &pci_host[i]);
+    }
     acpi_dsdt_add_memory_hotplug(ms, dsdt);
     acpi_dsdt_add_cpus(ms, dsdt, scope, smp_cpus, conf);
     acpi_dsdt_add_ged(dsdt, conf);
@@ -147,16 +150,21 @@ static void acpi_reduced_build(MachineState *ms, AcpiBuildTables *tables, AcpiCo
     Range pci_hole, pci_hole64;
     AcpiMcfgInfo *mcfg;
     GArray *tables_blob = tables->table_data;
+    uint16_t i;
+    AcpiPciBus *pci_host;
 
-    AcpiPciBus pci_host = {
-        .pci_bus    = VIRT_MACHINE(ms)->pci_bus[0],
-        .pci_hole   = &pci_hole,
-        .pci_hole64 = &pci_hole64,
-        .pci_segment = 0,
-        .acpi_iobase_addr = VIRT_ACPI_PCI_HOTPLUG_IO_BASE,
-    };
+    pci_host = g_new(AcpiPciBus , conf->segment_nr);
 
-    acpi_get_pci_holes(&pci_hole, &pci_hole64, pci_host.pci_bus);
+    for (i = 0; i < conf->segment_nr; i++) {
+        pci_host[i].pci_bus = VIRT_MACHINE(ms)->pci_bus[i];
+        pci_host[i].pci_hole = &pci_hole;
+        pci_host[i].pci_hole64 = &pci_hole64;
+        pci_host[i].pci_segment = i;
+        pci_host[i].acpi_iobase_addr = VIRT_ACPI_PCI_HOTPLUG_IO_BASE
+                                       + VIRT_ACPI_PCI_HOTPLUG_IO_TOKEN * i;
+        acpi_get_pci_holes(&pci_hole, &pci_hole64, pci_host[i].pci_bus);
+    }
+
     table_offsets = g_array_new(false, true /* clear */,
                                         sizeof(uint32_t));
 
@@ -166,7 +174,7 @@ static void acpi_reduced_build(MachineState *ms, AcpiBuildTables *tables, AcpiCo
 
     /* DSDT is pointed to by FADT */
     dsdt = tables_blob->len;
-    build_dsdt(ms, tables_blob, tables->linker, &pci_host, conf);
+    build_dsdt(ms, tables_blob, tables->linker, pci_host, conf);
 
     /* FADT pointed to by RSDT */
     acpi_add_table(table_offsets, tables_blob);
@@ -191,7 +199,7 @@ static void acpi_reduced_build(MachineState *ms, AcpiBuildTables *tables, AcpiCo
     /* TODO: What if one of the multi pci-host doesn't have mcfg base?
      * We now don't build mcfg in such case.
      */
-    if (acpi_get_mcfg(mcfg, &pci_host)) {
+    if (acpi_get_mcfg(mcfg, pci_host)) {
         acpi_add_table(table_offsets, tables_blob);
         mc->firmware_build_methods.acpi.mcfg(tables_blob,
                                              tables->linker, mcfg);
