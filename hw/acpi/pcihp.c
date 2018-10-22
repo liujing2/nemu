@@ -332,6 +332,10 @@ void acpi_pcihp_init(Object *owner, AcpiPciHpState *s, PCIBus *root_bus,
                           "acpi-pci-hotplug", s->io_len);
     memory_region_add_subregion(address_space_io, s->io_base, &s->io);
 
+    /* Register property only one time */
+    if (object_property_get_qobject(owner, ACPI_PCIHP_IO_BASE_PROP, NULL))
+        return;
+
     object_property_add_uint16_ptr(owner, ACPI_PCIHP_IO_BASE_PROP, &s->io_base,
                                    &error_abort);
     object_property_add_uint16_ptr(owner, ACPI_PCIHP_IO_LEN_PROP, &s->io_len,
