@@ -1675,26 +1675,34 @@ void acpi_get_pci_holes(Range *hole, Range *hole64, PCIBus *pci_bus)
 }
 
 
-bool acpi_get_mcfg(AcpiMcfgInfo *mcfg, PCIBus *pci_bus)
+bool acpi_get_mcfg(AcpiMcfgInfo *mcfg, AcpiPciBus *acpi_pci_host)
 {
     Object *pci_host;
     QObject *o;
+    uint16_t i;
 
     //pci_host = acpi_get_pci_host();
-    pci_host = OBJECT(PCI_HOST_BRIDGE(BUS(pci_bus)->parent));
-    g_assert(pci_host);
+    mcfg->mcfg_base = g_malloc0(mcfg->segment_total * sizeof(uint64_t));
+    mcfg->mcfg_size = g_malloc0(mcfg->segment_total * sizeof(uint32_t));
+    for(i = 0; i < mcfg->segment_total; i++) {
+        pci_host = OBJECT(PCI_HOST_BRIDGE(BUS(acpi_pci_host[i].pci_bus)->parent));
+        g_assert(pci_host);
 
-    o = object_property_get_qobject(pci_host, PCIE_HOST_MCFG_BASE, NULL);
-    if (!o) {
-        return false;
+        o = object_property_get_qobject(pci_host, PCIE_HOST_MCFG_BASE, NULL);
+        if (!o) {
+            /* If one pci_host got no mcfg base, just return false */
+            g_free(mcfg->mcfg_base);
+            g_free(mcfg->mcfg_size);
+            return false;
+        }
+        mcfg->mcfg_base[i] = qnum_get_uint(qobject_to(QNum, o));
+        qobject_unref(o);
+    
+        o = object_property_get_qobject(pci_host, PCIE_HOST_MCFG_SIZE, NULL);
+        assert(o);
+        mcfg->mcfg_size[i] = qnum_get_uint(qobject_to(QNum, o));
+        qobject_unref(o);
     }
-    mcfg->mcfg_base = qnum_get_uint(qobject_to(QNum, o));
-    qobject_unref(o);
-
-    o = object_property_get_qobject(pci_host, PCIE_HOST_MCFG_SIZE, NULL);
-    assert(o);
-    mcfg->mcfg_size = qnum_get_uint(qobject_to(QNum, o));
-    qobject_unref(o);
     return true;
 }
 
@@ -2019,14 +2027,16 @@ acpi_build_mcfg(GArray *table_data, BIOSLinker *linker, AcpiMcfgInfo *info)
 {
     AcpiTableMcfg *mcfg;
     const char *sig;
-    int len = sizeof(*mcfg) + 1 * sizeof(mcfg->allocation[0]);
+    int len = sizeof(*mcfg) + info->segment_total * sizeof(mcfg->allocation[0]);
+    uint16_t i;
 
     mcfg = acpi_data_push(table_data, len);
-    mcfg->allocation[0].address = cpu_to_le64(info->mcfg_base);
-    /* Only a single allocation so no need to play with segments */
-    mcfg->allocation[0].pci_segment = cpu_to_le16(0);
-    mcfg->allocation[0].start_bus_number = 0;
-    mcfg->allocation[0].end_bus_number = PCIE_MMCFG_BUS(info->mcfg_size - 1);
+    for (i = 0; i < info->segment_total; i++) {
+        mcfg->allocation[i].address = cpu_to_le64(info->mcfg_base[i]);
+        mcfg->allocation[i].pci_segment = cpu_to_le16(i);
+        mcfg->allocation[i].start_bus_number = 0;
+        mcfg->allocation[i].end_bus_number = PCIE_MMCFG_BUS(info->mcfg_size[i] - 1);
+    }
 
     /* MCFG is used for ECAM which can be enabled or disabled by guest.
      * To avoid table size changes (which create migration issues),
@@ -2034,7 +2044,8 @@ acpi_build_mcfg(GArray *table_data, BIOSLinker *linker, AcpiMcfgInfo *info)
      * but set the signature to a reserved value in this case.
      * ACPI spec requires OSPMs to ignore such tables.
      */
-    if (info->mcfg_base == PCIE_BASE_ADDR_UNMAPPED) {
+    /* TODO: What if some of pci_host has the UNMAPPED addr? */
+    if (info->mcfg_base[0] == PCIE_BASE_ADDR_UNMAPPED) {
         /* Reserved signature: ignored by OSPM */
         sig = "QEMU";
     } else {
