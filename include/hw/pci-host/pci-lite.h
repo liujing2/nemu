@@ -33,7 +33,8 @@
 
 PCIBus *pci_lite_init(MemoryRegion *address_space_mem,
                       MemoryRegion *address_space_io,
-                      MemoryRegion *pci_address_space);
+                      MemoryRegion *pci_address_space,
+                      uint16_t nr);
 
 
 #endif /* HW_PCI_LITE_H */

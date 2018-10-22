@@ -48,7 +48,7 @@ typedef struct {
 
     /* virt platform has multi-segment */
     uint16_t segment_nr;
-    PCIBus *pci_bus;
+    PCIBus **pci_bus;
 
     ram_addr_t above_4g_mem_size;
 

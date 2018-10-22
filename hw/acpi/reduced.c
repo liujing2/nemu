@@ -149,7 +149,7 @@ static void acpi_reduced_build(MachineState *ms, AcpiBuildTables *tables, AcpiCo
     GArray *tables_blob = tables->table_data;
 
     AcpiPciBus pci_host = {
-        .pci_bus    = VIRT_MACHINE(ms)->pci_bus,
+        .pci_bus    = VIRT_MACHINE(ms)->pci_bus[0],
         .pci_hole   = &pci_hole,
         .pci_hole64 = &pci_hole64,
         .pci_segment = 0,
