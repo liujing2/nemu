@@ -1513,6 +1513,9 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine, AcpiConfiguratio
             build_slit(tables_blob, tables->linker);
         }
     }
+
+    mcfg.segment_total = conf->segment_nr;
+
     if (acpi_get_mcfg(&mcfg, &pci_host)) {
         acpi_add_table(table_offsets, tables_blob);
         acpi_build_mcfg(tables_blob, tables->linker, &mcfg);

@@ -227,8 +227,9 @@ struct AcpiBuildTables {
 } AcpiBuildTables;
 
 typedef struct AcpiMcfgInfo {
-    uint64_t mcfg_base;
-    uint32_t mcfg_size;
+    uint64_t *mcfg_base;
+    uint32_t *mcfg_size;
+    uint16_t segment_total;
 } AcpiMcfgInfo;
 
 typedef struct AcpiPciBus {

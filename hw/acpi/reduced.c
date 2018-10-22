@@ -144,7 +144,7 @@ static void acpi_reduced_build(MachineState *ms, AcpiBuildTables *tables, AcpiCo
     GArray *table_offsets;
     unsigned dsdt, xsdt;
     Range pci_hole, pci_hole64;
-    AcpiMcfgInfo mcfg;
+    AcpiMcfgInfo *mcfg;
     GArray *tables_blob = tables->table_data;
 
     AcpiPciBus acpi_pci_host = {
@@ -184,9 +184,16 @@ static void acpi_reduced_build(MachineState *ms, AcpiBuildTables *tables, AcpiCo
         }
     }
 
-    if (acpi_get_mcfg(&mcfg, &acpi_pci_host)) {
+    mcfg = g_new0(AcpiMcfgInfo, 1);
+    mcfg->segment_total = conf->segment_nr;
+
+    /* TODO: What if one of the multi pci-host doesn't have mcfg base?
+     * We now don't build mcfg at all in such case.
+     */
+    if (acpi_get_mcfg(mcfg, &acpi_pci_host)) {
         acpi_add_table(table_offsets, tables_blob);
-        mc->firmware_build_methods.acpi.mcfg(tables_blob, tables->linker, &mcfg);
+        mc->firmware_build_methods.acpi.mcfg(tables_blob,
+                                             tables->linker, mcfg);
     }
     if (conf->acpi_nvdimm_state.is_enabled) {
         nvdimm_build_acpi(table_offsets, tables_blob, tables->linker,
