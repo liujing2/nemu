@@ -61,6 +61,8 @@ typedef struct PCILiteHost {
     PCIExpressHost parent_obj;
     /*< public >*/
 
+    uint16_t segment_nr;
+    char name[12];
     Range pci_hole;
     Range pci_hole64;
     qemu_irq irq[PCI_LITE_NUM_IRQS];
@@ -191,6 +193,10 @@ static void pci_lite_realize(DeviceState *dev, Error **errp)
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     int i;
 
+    if (d->segment_nr > 0) {
+        /* For segment > 0, we don't add any IO Ports and IRQs */
+        return;
+    }
     sysbus_add_io(sbd, 0xcf8, &s->conf_mem);
     sysbus_init_ioports(sbd, 0xcf8, 4);
 
@@ -204,7 +210,8 @@ static void pci_lite_realize(DeviceState *dev, Error **errp)
 
 PCIHostState *pci_lite_init(MemoryRegion *address_space_mem,
                       MemoryRegion *address_space_io,
-                      MemoryRegion *pci_address_space)
+                      MemoryRegion *pci_address_space,
+                      uint16_t nr)
 {
     DeviceState *dev;
     PCIHostState *pci;
@@ -214,19 +221,20 @@ PCIHostState *pci_lite_init(MemoryRegion *address_space_mem,
     dev = qdev_create(NULL, TYPE_PCI_LITE_HOST);
     pci = PCI_HOST_BRIDGE(dev);
     pcie = PCIE_HOST_BRIDGE(dev);
+    pci_lite = PCI_LITE_HOST(dev);
 
-    pci->bus = pci_register_root_bus(dev, "pcie.0", pci_lite_set_irq,
+    pci_lite->segment_nr = nr;
+    snprintf(pci_lite->name, sizeof(pci_lite->name), "%x.pcie.0", nr);
+
+    pci->bus = pci_register_root_bus(dev, pci_lite->name, pci_lite_set_irq,
                                 pci_swizzle_map_irq_fn, pci, pci_address_space,
                                 address_space_io, 0, 4, TYPE_PCIE_BUS);
 
     qdev_init_nofail(dev);
 
-    pci_lite = PCI_LITE_HOST(dev);
-
     range_set_bounds(&pci_lite->pci_hole,
                     PCI_LITE_PCIEXBAR_BASE + PCI_LITE_PCIEXBAR_SIZE,
                     IO_APIC_DEFAULT_ADDRESS);
-
 
     pcie_host_mmcfg_update(pcie, 1, PCI_LITE_PCIEXBAR_BASE,
                            PCI_LITE_PCIEXBAR_SIZE);
@@ -243,7 +251,11 @@ PCIHostState *pci_lite_init(MemoryRegion *address_space_mem,
 static const char *pci_lite_root_bus_path(PCIHostState *host_bridge,
                                           PCIBus *rootbus)
 {
-    return "0000:00";
+    PCILiteHost *p = PCI_LITE_HOST(host_bridge);
+    char * ret = g_malloc0(8);
+
+    snprintf(ret, 8, "%04x:00", p->segment_nr);
+    return ret;
 }
 
 static Property pci_lite_props[] = {

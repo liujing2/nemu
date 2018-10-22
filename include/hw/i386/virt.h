@@ -47,7 +47,7 @@ typedef struct {
     qemu_irq *gsi;
 
     /* virt platform has multi-segment */
-    PCIBus *pci_bus;
+    PCIBus **pci_bus;
 
     ram_addr_t above_4g_mem_size;
 
