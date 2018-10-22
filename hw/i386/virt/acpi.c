@@ -51,8 +51,8 @@ typedef struct VirtAcpiState {
 
     qemu_irq *gsi;
 
-    AcpiPciHpState pcihp_state;
-    PCIBus *pci_bus;
+    AcpiPciHpState *pcihp_state;
+    PCIBus **pci_bus;
 
     MemoryRegion sleep_iomem;
     MemoryRegion reset_iomem;
@@ -83,7 +83,7 @@ static void virt_device_plug_cb(HotplugHandler *hotplug_dev,
                                 dev, errp);
         }
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
-        acpi_pcihp_device_plug_cb(hotplug_dev, &s->pcihp_state, dev, errp);
+        acpi_pcihp_device_plug_cb(hotplug_dev, &s->pcihp_state[0], dev, errp);
     } else {
         error_setg(errp, "virt: device plug request for unsupported device"
                    " type: %s", object_get_typename(OBJECT(dev)));
@@ -100,7 +100,7 @@ static void virt_device_unplug_request_cb(HotplugHandler *hotplug_dev,
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
         acpi_memory_unplug_request_cb(hotplug_dev, &s->memhp_state, dev, errp);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
-        acpi_pcihp_device_unplug_cb(hotplug_dev, &s->pcihp_state, dev, errp);
+//        acpi_pcihp_device_unplug_cb(hotplug_dev, &s->pcihp_state, dev, errp);
     }else {
         error_setg(errp, "virt: device unplug request for unsupported device"
                    " type: %s", object_get_typename(OBJECT(dev)));
@@ -214,24 +214,32 @@ static void virt_device_realize(DeviceState *dev, Error **errp)
     sysbus_add_io(sys, ACPI_REDUCED_RESET_IOPORT, &s->reset_iomem);
 }
 
-DeviceState *virt_acpi_init(qemu_irq *gsi, PCIBus *pci_bus)
+DeviceState *virt_acpi_init(qemu_irq *gsi, PCIBus **pci_bus, uint16_t segment_total)
 {
     DeviceState *dev;
     VirtAcpiState *s;
+    uint16_t i;
 
     dev = sysbus_create_simple(TYPE_VIRT_ACPI, -1, NULL);
 
     s = VIRT_ACPI(dev);
     s->gsi = gsi;
-    s->pci_bus = pci_bus;
+    s->pcihp_state = g_new0(AcpiPciHpState, segment_total);
+    s->pci_bus = g_new0(PCIBus*, segment_total);
 
-    if (pci_bus) {
-        /* Initialize PCI hotplug */
-        qbus_set_hotplug_handler(BUS(pci_bus), dev, NULL);
+    for (i = 0; i < segment_total; i++) {
+        s->pci_bus[i] = pci_bus[i];
 
-        acpi_pcihp_init(OBJECT(s), &s->pcihp_state, s->pci_bus,
-                        get_system_io(), true, VIRT_ACPI_PCI_HOTPLUG_IO_BASE);
-        acpi_pcihp_reset(&s->pcihp_state);
+        if (pci_bus[i]) {
+            /* Initialize PCI hotplug */
+            qbus_set_hotplug_handler(BUS(pci_bus[i]), dev, NULL);
+
+            acpi_pcihp_init(OBJECT(s), &s->pcihp_state[i], s->pci_bus[i],
+                            get_system_io(), true,
+                            VIRT_ACPI_PCI_HOTPLUG_IO_BASE +
+                            i * VIRT_ACPI_PCI_HOTPLUG_IO_TOKEN, i);
+            acpi_pcihp_reset(&s->pcihp_state[i]);
+        }
     }
 
     return dev;

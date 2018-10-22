@@ -46,6 +46,7 @@
 #include "sysemu/numa.h"
 
 #include "migration/vmstate.h"
+#include "hw/i386/virt.h"
 
 static void acpi_dsdt_add_memory_hotplug(MachineState *ms, Aml *dsdt)
 {

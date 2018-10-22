@@ -67,9 +67,12 @@ typedef struct {
 /* Our GED IRQ lives after the legacy IRQs */
 #define VIRT_ACPI_GED_IRQ 0x10
 
+#define VIRT_ACPI_PCI_HOTPLUG_IO_BASE 0xae00
+#define VIRT_ACPI_PCI_HOTPLUG_IO_TOKEN 0x0030
+
 MemoryRegion *virt_memory_init(VirtMachineState *vms);
 
-DeviceState *virt_acpi_init(qemu_irq *gsi, PCIBus *pci_bus);
+DeviceState *virt_acpi_init(qemu_irq *gsi, PCIBus **pci_bus, uint16_t segment_total);
 
 #define PCI_HOST_PCIEXBAR_BASE 0x40000000
 #define PCI_HOST_PCIEXBAR_SIZE (0x10000000) /* 256M for bus 0 */

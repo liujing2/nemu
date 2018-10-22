@@ -172,7 +172,7 @@ static void virt_pci_init(VirtMachineState *vms)
 {
     MemoryRegion **pci_memory;
     uint16_t i;
-    char name[9];
+    char name[16];
 
     pci_memory = g_new(MemoryRegion*, vms->acpi_conf.segment_nr);
     vms->pci_bus = g_new(PCIBus*, vms->acpi_conf.segment_nr);
@@ -213,7 +213,7 @@ static void virt_machine_state_init(MachineState *machine)
     virt_memory_init(vms);
     virt_pci_init(vms);
     virt_ioapic_init(vms);
-    vms->acpi = virt_acpi_init(vms->gsi, vms->pci_bus[0]);
+    vms->acpi = virt_acpi_init(vms->gsi, vms->pci_bus, vms->acpi_conf.segment_nr);
 
     vms->apic_id_limit = cpus_init(machine, false);
 
