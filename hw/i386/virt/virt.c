@@ -90,6 +90,7 @@ static void acpi_conf_virt_init(MachineState *machine)
     conf->legacy_cpu_hotplug = false;
     conf->rsdp_in_ram = true;
     conf->apic_xrupt_override = kvm_allows_irq0_override();
+    conf->segment_nr = vms->segment_nr;
 
     conf->cpu_hotplug_io_base = VIRT_CPU_HOTPLUG_IO_BASE;
 

@@ -221,6 +221,7 @@ struct AcpiConfiguration {
     uint16_t cpu_hotplug_io_base;
     GedEvent *ged_events;
     uint8_t ged_events_size;
+    uint16_t segment_nr;
 
     /* Build state */
     AcpiBuildState *build_state;
