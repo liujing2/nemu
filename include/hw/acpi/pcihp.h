@@ -67,7 +67,7 @@ typedef struct AcpiPciHpState {
 
 void acpi_pcihp_init(Object *owner, AcpiPciHpState *, PCIBus *root,
                      MemoryRegion *address_space_io, bool bridges_enabled,
-                     uint16_t apci_pcihp_addr);
+                     uint16_t apci_pcihp_addr, uint16_t pcihp_segment);
 
 void acpi_pcihp_device_plug_cb(HotplugHandler *hotplug_dev, AcpiPciHpState *s,
                                DeviceState *dev, Error **errp);

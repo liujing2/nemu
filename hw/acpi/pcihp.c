@@ -320,16 +320,18 @@ static const MemoryRegionOps acpi_pcihp_io_ops = {
 
 void acpi_pcihp_init(Object *owner, AcpiPciHpState *s, PCIBus *root_bus,
                      MemoryRegion *address_space_io, bool bridges_enabled,
-                     uint16_t acpi_pcihp_addr)
+                     uint16_t acpi_pcihp_addr, uint16_t pcihp_segment)
 {
+    char name[30];
+
     s->io_len = ACPI_PCIHP_SIZE;
     s->io_base = acpi_pcihp_addr;
 
     s->root= root_bus;
     s->legacy_piix = !bridges_enabled;
-
+    snprintf(name, sizeof(name), "acpi-pci-hotplug-segment%x", pcihp_segment);
     memory_region_init_io(&s->io, owner, &acpi_pcihp_io_ops, s,
-                          "acpi-pci-hotplug", s->io_len);
+                          name, s->io_len);
     memory_region_add_subregion(address_space_io, s->io_base, &s->io);
 
     /* Register property only one time */
