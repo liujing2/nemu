@@ -50,11 +50,6 @@
     OBJECT_CHECK(PCILiteHost, (obj), TYPE_PCI_LITE_HOST)
 
 #define PCI_LITE_NUM_IRQS       4
-#define PCI_LITE_PCIEXBAR_BASE  0x80000000
-#define PCI_LITE_PCIEXBAR_SIZE  (0x10000000) /* 256M for bus 0 */
-
-#define DEFAULT_PCI_HOLE64_SIZE (1ULL << 35)
-#define PCI_LITE_HOLE64_START_BASE 0x100000000ULL
 
 typedef struct PCILiteHost {
     /*< private >*/
@@ -83,7 +78,7 @@ static uint64_t pci_lite_pci_hole64_start(void)
         hole64_start = machine->device_memory->base;
         hole64_start += memory_region_size(&machine->device_memory->mr);
     } else {
-        hole64_start = PCI_LITE_HOLE64_START_BASE + vms->above_4g_mem_size;
+        hole64_start = PCI_HOST_HOLE64_START_BASE + vms->above_4g_mem_size;
     }
 
     return ROUND_UP(hole64_start, 1ULL << 30);
@@ -217,6 +212,7 @@ PCIHostState *pci_lite_init(MemoryRegion *address_space_mem,
     PCIHostState *pci;
     PCIExpressHost *pcie;
     PCILiteHost *pci_lite;
+    VirtMachineState *vms = VIRT_MACHINE(qdev_get_machine());
 
     dev = qdev_create(NULL, TYPE_PCI_LITE_HOST);
     pci = PCI_HOST_BRIDGE(dev);
@@ -232,13 +228,22 @@ PCIHostState *pci_lite_init(MemoryRegion *address_space_mem,
 
     qdev_init_nofail(dev);
 
-    range_set_bounds(&pci_lite->pci_hole,
-                    PCI_LITE_PCIEXBAR_BASE + PCI_LITE_PCIEXBAR_SIZE,
-                    IO_APIC_DEFAULT_ADDRESS);
+    uint64_t pci_hole_base, pci_hole_end, mcfg_base;
 
-    pcie_host_mmcfg_update(pcie, 1, PCI_LITE_PCIEXBAR_BASE,
-                           PCI_LITE_PCIEXBAR_SIZE);
-    e820_add_entry(PCI_LITE_PCIEXBAR_BASE, PCI_LITE_PCIEXBAR_SIZE,
+    mcfg_base = PCI_HOST_PCIEXBAR_BASE + nr * PCI_HOST_PCIEXBAR_SIZE;
+    pci_hole_base = PCI_HOST_PCIEXBAR_BASE +
+                    vms->acpi_conf.segment_nr * PCI_HOST_PCIEXBAR_SIZE
+                    + nr * PCI_HOST_PCI_HOLE_SIZE;
+    pci_hole_end = pci_hole_base + PCI_HOST_PCI_HOLE_SIZE;
+    if (pci_hole_end < IO_APIC_DEFAULT_ADDRESS) {
+        range_set_bounds(&pci_lite->pci_hole, pci_hole_base, pci_hole_end - 1);
+    } else {
+        fprintf(stderr, "Set too much PCI segments");
+        abort();
+    }
+
+    pcie_host_mmcfg_update(pcie, 1, mcfg_base, PCI_HOST_PCIEXBAR_SIZE);
+    e820_add_entry(mcfg_base, PCI_HOST_PCIEXBAR_SIZE,
                    E820_RESERVED);
 
     /* setup pci memory mapping */
@@ -260,9 +265,9 @@ static const char *pci_lite_root_bus_path(PCIHostState *host_bridge,
 
 static Property pci_lite_props[] = {
     DEFINE_PROP_UINT64(PCIE_HOST_MCFG_BASE, PCILiteHost,
-                       parent_obj.base_addr, PCI_LITE_PCIEXBAR_BASE),
+                       parent_obj.base_addr, PCI_HOST_PCIEXBAR_BASE),
     DEFINE_PROP_UINT64(PCIE_HOST_MCFG_SIZE, PCILiteHost,
-                       parent_obj.size, PCI_LITE_PCIEXBAR_SIZE),
+                       parent_obj.size, PCI_HOST_PCIEXBAR_SIZE),
     DEFINE_PROP_SIZE(PCI_HOST_PROP_PCI_HOLE64_SIZE, PCILiteHost,
                      pci_hole64_size, DEFAULT_PCI_HOLE64_SIZE),
     DEFINE_PROP_END_OF_LIST(),
