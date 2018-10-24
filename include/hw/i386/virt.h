@@ -79,6 +79,6 @@ DeviceState *virt_acpi_init(qemu_irq *gsi, PCIBus **pci_bus, uint16_t segment_to
 //#define PCI_HOST_PCI_HOLE_BASE 0xa0000000
 #define PCI_HOST_PCI_HOLE_SIZE (0x10000000)
 
-#define DEFAULT_PCI_HOLE64_SIZE (1ULL << 35)
+#define DEFAULT_PCI_HOLE64_SIZE (1ULL << 32)
 #define PCI_HOST_HOLE64_START_BASE 0x100000000ULL
 #endif

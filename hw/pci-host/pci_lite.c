@@ -68,17 +68,24 @@ typedef struct PCILiteHost {
  * The 64bit pci hole starts after "above 4G RAM" and
  * potentially the space reserved for memory device.
  */
-static uint64_t pci_lite_pci_hole64_start(void)
+static uint64_t pci_lite_pci_hole64_start(PCILiteHost *s)
 {
     VirtMachineState *vms = VIRT_MACHINE(qdev_get_machine());
     MachineState *machine = MACHINE(vms);
     uint64_t hole64_start = 0;
 
-    if (machine->device_memory->base) {
-        hole64_start = machine->device_memory->base;
-        hole64_start += memory_region_size(&machine->device_memory->mr);
+    if (s->segment_nr == 0) {
+        if (machine->device_memory->base) {
+            hole64_start = machine->device_memory->base;
+            hole64_start += memory_region_size(&machine->device_memory->mr);
+        } else {
+            hole64_start += PCI_HOST_HOLE64_START_BASE + vms->above_4g_mem_size;
+        }
     } else {
-        hole64_start = PCI_HOST_HOLE64_START_BASE + vms->above_4g_mem_size;
+        /* Get the start from pci_hole64_end of previous host */
+        PCIHostState *h = vms->acpi_conf.pci_host[s->segment_nr - 1];
+
+        hole64_start = range_upb(&PCI_LITE_HOST(h)->pci_hole64);
     }
 
     return ROUND_UP(hole64_start, 1ULL << 30);
@@ -117,15 +124,25 @@ static void pci_lite_get_pci_hole64_start(Object *obj, Visitor *v,
                                           void *opaque, Error **errp)
 {
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
+    PCILiteHost *s = PCI_LITE_HOST(obj);
     Range w64;
     uint64_t value;
 
+    /* TODO: This will get w64 which is decided from firmware
+     * like OVMF will set gUefiOvmfPkgTokenSpaceGuid.PcdPciMmio64Size
+     * as 0x80000000.
+     * Question is, whether firmware should set this value?
+     * Otherwise, we currently change OVMF setting as zero and just set in
+     * qemu side. Thus, qemu sets the hole64_start for each segment after the
+     * value of previous hole64_end.
+     */
     pci_bus_get_w64_range(h->bus, &w64);
     value = range_is_empty(&w64) ? 0 : range_lob(&w64);
     if (!value) {
-        value = pci_lite_pci_hole64_start();
+        value = pci_lite_pci_hole64_start(s);
     }
     visit_type_uint64(v, name, &value, errp);
+    range_set_bounds(&s->pci_hole64, value, range_upb(&s->pci_hole64));
 }
 
 static void pci_lite_get_pci_hole64_end(Object *obj, Visitor *v,
@@ -134,10 +151,12 @@ static void pci_lite_get_pci_hole64_end(Object *obj, Visitor *v,
 {
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
     PCILiteHost *s = PCI_LITE_HOST(obj);
-    uint64_t hole64_start = pci_lite_pci_hole64_start();
+    uint64_t hole64_start = pci_lite_pci_hole64_start(s);
     Range w64;
     uint64_t value, hole64_end;
 
+    /* TODO: Assuming firmware doesn't set the
+     * gUefiOvmfPkgTokenSpaceGuid.PcdPciMmio64Size */
     pci_bus_get_w64_range(h->bus, &w64);
     value = range_is_empty(&w64) ? 0 : range_upb(&w64) + 1;
     hole64_end = ROUND_UP(hole64_start + s->pci_hole64_size, 1ULL << 30);
@@ -145,6 +164,7 @@ static void pci_lite_get_pci_hole64_end(Object *obj, Visitor *v,
         value = hole64_end;
     }
     visit_type_uint64(v, name, &value, errp);
+    range_set_bounds(&s->pci_hole64, range_lob(&s->pci_hole64), value);
 }
 
 static void pci_lite_initfn(Object *obj)
