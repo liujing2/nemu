@@ -30,6 +30,8 @@
 
 #define FW_CFG_FILE_FIRST       0x20
 #define FW_CFG_FILE_SLOTS_MIN   0x10
+#define FW_CFG_PCIEXBAR_BASE    0x1a
+#define FW_CFG_PCI_SEGMENT      0x1b
 
 #define FW_CFG_WRITE_CHANNEL    0x4000
 #define FW_CFG_ARCH_LOCAL       0x8000
