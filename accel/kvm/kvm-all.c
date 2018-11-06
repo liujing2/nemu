@@ -1735,8 +1735,9 @@ static void kvm_handle_io(uint16_t port, MemTxAttrs attrs, void *data, int direc
 
 static int kvm_handle_internal_error(CPUState *cpu, struct kvm_run *run)
 {
-    fprintf(stderr, "KVM internal error. Suberror: %d\n",
+    fprintf(stderr, "KVM internal error.!!!!!!!!!!! Suberror: %d\n",
             run->internal.suberror);
+    fprintf(stderr, "liujing !!!! ndata = %"PRIx64"\n",(uint64_t)run->internal.ndata);
 
     if (kvm_check_extension(kvm_state, KVM_CAP_INTERNAL_ERROR_DATA)) {
         int i;
@@ -1746,6 +1747,7 @@ static int kvm_handle_internal_error(CPUState *cpu, struct kvm_run *run)
                     i, (uint64_t)run->internal.data[i]);
         }
     }
+   cpu_dump_state(cpu, stderr, fprintf, CPU_DUMP_CODE);
     if (run->internal.suberror == KVM_INTERNAL_ERROR_EMULATION) {
         fprintf(stderr, "emulation failure\n");
         if (!kvm_arch_stop_on_emulation_error(cpu)) {
@@ -1966,6 +1968,10 @@ int kvm_cpu_exec(CPUState *cpu)
         case KVM_EXIT_IO:
             DPRINTF("handle_io\n");
             /* Called outside BQL */
+   fprintf(stderr, "liujing !!!!!!!!!!!!!!!!!!! \n");
+   cpu_dump_state(cpu, stderr, fprintf, CPU_DUMP_CODE);
+
+    fprintf(stderr, "liujing ??????????????\n");
             kvm_handle_io(run->io.port, attrs,
                           (uint8_t *)run + run->io.data_offset,
                           run->io.direction,

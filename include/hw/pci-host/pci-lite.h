@@ -29,6 +29,27 @@
 #define HW_PCI_LITE_H
 
 #include "hw/hw.h"
+#include "qemu/range.h"
+#include "hw/pci/pcie_host.h"
+
+#define TYPE_PCI_LITE_HOST      "pci-lite-host"
+#define TYPE_PCI_LITE_DEVICE    "pci-lite-device"
+
+#define PCI_LITE_HOST(obj) \
+    OBJECT_CHECK(PCILiteHost, (obj), TYPE_PCI_LITE_HOST)
+
+#define PCI_LITE_NUM_IRQS       4
+
+typedef struct PCILiteHost {
+    /*< private >*/
+    PCIExpressHost parent_obj;
+    /*< public >*/
+
+    Range pci_hole;
+    Range pci_hole64;
+    qemu_irq irq[PCI_LITE_NUM_IRQS];
+    uint64_t pci_hole64_size;
+} PCILiteHost;
 
 
 PCIHostState *pci_lite_init(MemoryRegion *address_space_mem,
