@@ -77,11 +77,8 @@ typedef struct PCIVirtDev {
  */
 static uint64_t pci_virt_pci_hole64_start(PCIHostState *h)
 {
-    uint64_t hole64_start = 0;
+    return PCI_VIRT_HOLE64_START_BASE;
 
-    hole64_start = 0xA00000000;
-
-    return ROUND_UP(hole64_start, 1ULL << 30);
 }
 
 static void pci_virt_get_pci_hole_start(Object *obj, Visitor *v,
@@ -195,7 +192,7 @@ static void pci_virt_set_irq(void *opaque, int irq_num, int level)
     qemu_set_irq(d->irq[irq_num], level); 
 }
 
-static void pci_virt_init(DeviceState *dev,
+static PCIHostState *pci_virt_init(DeviceState *dev,
                           MemoryRegion *address_space_mem,
                           MemoryRegion *address_space_io,
                           MemoryRegion *pci_address_space)
@@ -211,6 +208,7 @@ static void pci_virt_init(DeviceState *dev,
     pci->bus = pci_register_root_bus(dev, dev->id, pci_virt_set_irq,
                                 pci_swizzle_map_irq_fn, pci, pci_address_space,
                                 address_space_io, 0, 4, TYPE_PCIE_BUS); 
+    
     pci_create_simple(pci->bus, 0, TYPE_PCI_VIRT_DEVICE);
     pci_virt = PCI_VIRT_HOST(dev);
 /*
@@ -227,6 +225,7 @@ static void pci_virt_init(DeviceState *dev,
         sysbus_init_irq(sbd, &pci_virt->irq[i]);
     }
 */
+
 
     mcfg_base = PCI_VIRT_PCIEXBAR_BASE;
     pci_hole_start = PCI_LITE_HOLE_START_BASE + PCI_LITE_PCIEXBAR_SIZE;
@@ -246,6 +245,7 @@ static void pci_virt_init(DeviceState *dev,
     /* setup pci memory mapping */
     pc_pci_as_mapping_init(OBJECT(dev), address_space_mem, pci_address_space);
 
+    return pci;
 }
 
 /* pci-virt host bridge realize */
@@ -260,11 +260,11 @@ static void pci_virt_realize(DeviceState *dev, Error **errp)
     pci_memory = g_new(MemoryRegion, 1);
     memory_region_init(pci_memory, NULL, "pci_virt", UINT64_MAX);
 
-
-    vms->acpi_conf.pci_host = g_renew(PCIHostState*, segment_nr);
+    vms->acpi_conf.pci_host = g_renew(PCIHostState*, vms->acpi_conf.pci_host, segment_nr);
     vms->acpi_conf.pci_host[segment_nr] = pci_virt_init(dev,
                     get_system_memory(), get_system_io(), pci_memory);
 
+    vms->pci_bus = g_renew(PCIBus*, vms->pci_bus, vms->acpi_conf.total_segment);
     vms->pci_bus[segment_nr] = vms->acpi_conf.pci_host[segment_nr]->bus;
 }
 

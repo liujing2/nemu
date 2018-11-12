@@ -223,6 +223,7 @@ struct AcpiConfiguration {
     uint32_t ged_events_size;
     uint32_t ged_irq;
     PCIHostState **pci_host;
+    uint16_t total_segment;
 
     /* Build state */
     AcpiBuildState *build_state;

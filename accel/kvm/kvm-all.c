@@ -1968,10 +1968,17 @@ int kvm_cpu_exec(CPUState *cpu)
         case KVM_EXIT_IO:
             DPRINTF("handle_io\n");
             /* Called outside BQL */
-   fprintf(stderr, "liujing !!!!!!!!!!!!!!!!!!! \n");
-   cpu_dump_state(cpu, stderr, fprintf, CPU_DUMP_CODE);
+   //cpu_dump_state(cpu, stderr, fprintf, CPU_DUMP_CODE);
+   int a=-1,b=-1;
+   if(run->io.port == 112 || run->io.port == 113 || run->io.port == 0x402) {
+        a = 1;
+        printf("a=%d,b=%d",a,b);
+   }else if(run->io.port >= 0x510 && run->io.port <= 0x518) {
+        a = 2;
+   } else {
+       a=3;
+   }
 
-    fprintf(stderr, "liujing ??????????????\n");
             kvm_handle_io(run->io.port, attrs,
                           (uint8_t *)run + run->io.data_offset,
                           run->io.direction,
